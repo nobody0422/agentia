@@ -1,0 +1,91 @@
+<!-- index.html -->
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Generar video con agenteveo3</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; }
+    textarea { width: 100%; height: 140px; }
+    button { padding: 10px 16px; margin-top: 8px; }
+    #status { margin-top: 12px; color: #333; }
+    #videoPreview { margin-top: 16px; max-width: 100%; }
+  </style>
+</head>
+<body>
+  <h3>Generar video con agenteveo3</h3>
+
+  <label for="prompt">Prompt</label>
+  <textarea id="prompt">A close up of two people staring at a cryptic drawing on a wall, torchlight flickering.
+A man murmurs, 'This must be it. That's the secret code.' The woman looks at him and whispering excitedly, 'What did you find?'</textarea>
+
+  <div>
+    <button id="generateBtn">Generar video</button>
+    <button id="downloadBtn" style="display:none">Descargar video</button>
+  </div>
+
+  <div id="status"></div>
+
+  <video id="videoPreview" controls style="display:none"></video>
+
+  <script>
+    const generateBtn = document.getElementById("generateBtn");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const statusEl = document.getElementById("status");
+    const promptEl = document.getElementById("prompt");
+    const videoEl = document.getElementById("videoPreview");
+
+    generateBtn.addEventListener("click", async () => {
+      const prompt = promptEl.value.trim();
+      if (!prompt) {
+        statusEl.textContent = "Escribe un prompt antes de generar.";
+        return;
+      }
+
+      statusEl.textContent = "Enviando solicitud al servidor...";
+      generateBtn.disabled = true;
+      downloadBtn.style.display = "none";
+      videoEl.style.display = "none";
+      videoEl.src = "";
+
+      try {
+        const resp = await fetch("/generate-video", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt }),
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json().catch(()=>null);
+          throw new Error(err?.error || resp.statusText);
+        }
+
+        const data = await resp.json();
+        const videoUrl = data.videoUrl;
+        if (!videoUrl) throw new Error("No se recibió URL de video");
+
+        statusEl.textContent = "Video generado. Preparando vista previa...";
+        // Si videoUrl es una URL accesible, la ponemos en el video
+        videoEl.src = videoUrl;
+        videoEl.style.display = "block";
+
+        // Mostrar botón de descarga que abre la URL en nueva pestaña
+        downloadBtn.style.display = "inline-block";
+        downloadBtn.onclick = () => {
+          // Forzar descarga abriendo en nueva pestaña
+          window.open(videoUrl, "_blank");
+        };
+
+        statusEl.textContent = "Listo. Reproduce el video o descárgalo.";
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "Error: " + err.message;
+      } finally {
+        generateBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
+
